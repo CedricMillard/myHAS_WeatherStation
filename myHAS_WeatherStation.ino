@@ -340,41 +340,12 @@ void initiatlizeWebServer()
 
   server.on("/saveRules", HTTP_POST, [](AsyncWebServerRequest *request){
     //Publish rules
-    int iNbRule = request->getParam("NbRule", true)->value().toInt();
     int iID = request->getParam("ID", true)->value().toInt();
-#ifdef _DEBUG_      
-    Serial.printf("NbRule %d ID = %d\n", iNbRule, iID);
-#endif    
-    myWebPublisher->aPrises.getItem(iID)->aRules.removeAll();
-    
-    for(int i=1; i<=iNbRule; i++)
-    {
-      if(request->getParam("status" + String(i), true)->value()!="deleted")
-      {
-        Rule currentRule;
-        currentRule.frequency = request->getParam("Freq" + String(i), true)->value().toInt();
-        currentRule.condition = request->getParam("rule" + String(i), true)->value();
-        String sAction = request->getParam("action" + String(i), true)->value();
-        if (sAction=="turnON") currentRule.action = turnOn;
-        //else if (sAction=="turnOFF") currentRule.action = turnOff;
-        else if (sAction=="blink") currentRule.action = Action::blink;
-        else currentRule.action = toggle;
-        if(request->getParam("status" + String(i), true)->value()=="active")
-          currentRule.active = true;
-        else
-          currentRule.active = false;
-        myWebPublisher->aPrises.getItem(iID)->aRules.add(currentRule);
-#ifdef _DEBUG_        
-      Serial.printf("Rule Added: freq=%d rule=%s action=%s\n",currentRule.frequency, currentRule.condition.c_str(), sAction.c_str());
-#endif 
-      }
-#ifdef _DEBUG_        
-      else Serial.println("1 Rule Deleted");
-#endif      
-    }
+    String newRules = request->getParam("output", true)->value();
+    myWebPublisher->aPrises.getItem(iID)->jsonToRules(newRules);
     
     String topic = "/prise/" + String(iID) + "/rules";
-    myWebPublisher->publishMsg(topic, myWebPublisher->aPrises.getItem(iID)->rulesToJson(), false);
+    myWebPublisher->publishMsg(topic, newRules, false);
     
     request->redirect("/");
   });
