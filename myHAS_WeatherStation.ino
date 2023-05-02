@@ -1,6 +1,6 @@
 /*
  * TODO: 
- * 
+ * Configure gps location in Settings
  * + Ajouter date? (trigger dans une plage de dates)
  * 
  * If MQTT server is down, sockets are stucked... Not working fully standalone...
@@ -18,6 +18,7 @@
  */
 #include "Config_WeatherStation.h"
 #include <WiFi.h>
+//Must set MQTT_MAX_PACKET_SIZE 2048 to handle 24H time forecast
 #include <PubSubClient.h>
 #include <ESPAsyncWebServer.h>
 #include <Environment.h>
@@ -232,46 +233,39 @@ Serial.println(WiFi.localIP());
     ArduinoOTA.begin();
     
     //initialize MQTT clients
-    //mqttClientEnv.setServer(MQTT_SERVER, 1885);
     myEnv->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientEnv.setCallback(callbackEnv);
 
     myLog = new Logging(PRISE1_ID);
     myEnv->setLog(myLog);
 
-    //mqttClientWeather.setServer(MQTT_SERVER, 1885);
-    myWeatherService->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
-    mqttClientWeather.setCallback(NULL);
+    myWeatherService->setWeatherLocation(WEATHER_LAT, WEATHER_LONG);
     myWeatherService->setLog(myLog);
     myWeatherService->setEnv(myEnv);
-    
-    //mqttClientDisplay.setServer(MQTT_SERVER, 1885);
+    myWeatherService->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
+    mqttClientWeather.setCallback(NULL);
+        
     myDisplay->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientDisplay.setCallback(callbackDisplay);
     myDisplay->setLog(myLog);
     myDisplay->init();
 
-    //mqttClientWebPub.setServer(MQTT_SERVER, 1885);
     myWebPublisher->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientWebPub.setCallback(callbackWeb);
     myWebPublisher->setLog(myLog);
     myWebPublisher->setEnv(myEnv);
 
-    //mqttClientPrise433_1.setServer(MQTT_SERVER, 1885);
     prise433_1->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientPrise433_1.setCallback(callbackPrise_1);
     prise433_1->setEnv(myEnv);
     prise433_1->setLog(myLog);
     prise433_1->init();
     
-
-    //mqttClientPrise433_2.setServer(MQTT_SERVER, 1885);
     prise433_2->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     prise433_2->setEnv(myEnv);
     prise433_2->setLog(myLog);
     prise433_2->init();
 
-    //mqttClientTemp.setServer(MQTT_SERVER, 1885);
     tempSensor->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientTemp.setCallback(callbackTemp);
     tempSensor->setEnv(myEnv);

@@ -27,6 +27,7 @@ class WeatherService: public MyMQTTClient
   protected:
     bool publishParams();
   private:
+    bool updateWeather();
     unsigned long lastUpdatedWeather = 0;
     float weatherLat = 59.449062;
     float weatherLong = 16.332060;
