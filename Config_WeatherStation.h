@@ -5,7 +5,7 @@
 //#define _DEBUG_
 
 //Frequency to update the real time 
-#define WEATHER_UPDATE_FREQ 7200 //s = 2H
+#define WEATHER_UPDATE_FREQ 28800 //s = 8H
 
 
 #define OTA_NAME "WeatherStation"
@@ -21,11 +21,14 @@
 #define ADDRESS_SENSOR_TEMP 480
 
 #define WEATHER_LOCATION "Kvicksund"
+#define WEATHER_LAT 59.449062
+#define WEATHER_LONG 16.332060
 
 //WEATHER
-#define WEATHER_URI "https://api.darksky.net/forecast/#KEY/#LAT,#LONG?#OPTIONS"
-#define WEATHER_KEY "751c1dc1b7b46ffa19ba9041a818f53e"
-#define WEATHER_OPTIONS "exclude=currently,minutely,alerts,flag&units=ca&lang=fr"
+//#define WEATHER_URI "https://api.darksky.net/forecast/#KEY/#LAT,#LONG?#OPTIONS"
+//#define WEATHER_KEY "751c1dc1b7b46ffa19ba9041a818f53e"
+//#define WEATHER_OPTIONS "exclude=currently,minutely,alerts,flag&units=ca&lang=fr"
+#define WEATHER_URI "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=#LAT&lon=#LONG"
 
 #define W_SUN 1
 #define W_PARTCLOUD 2
