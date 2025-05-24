@@ -4,6 +4,9 @@
 //Comment for not having serial trace (prod)
 //#define _DEBUG_
 
+//Uncomment to broadcast weather forecast from the web
+//#define WEATHER_SERVICE 
+
 //Frequency to update the real time 
 #define WEATHER_UPDATE_FREQ 28800 //s = 8H
 

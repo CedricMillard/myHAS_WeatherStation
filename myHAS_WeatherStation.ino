@@ -22,7 +22,7 @@
 #include <PubSubClient.h>
 #include <ESPAsyncWebServer.h>
 #include <Environment.h>
-#include "WeatherService.h"
+
 #include "WeatherDisplay.h"
 #include <ArrayCed.h>
 #include "WebMQTTPublisher.h"
@@ -34,6 +34,10 @@
 #include <SPIFFS.h>
 #endif
 
+#ifdef WEATHER_SERVICE
+#include "WeatherService.h"
+#endif
+
 //Flag to indicate if prise is a wifi client or an access point
 bool wifiAP = false;
 unsigned long wifiReconnectTime = 0;
@@ -41,20 +45,27 @@ unsigned long wifiReconnectTime = 0;
 AsyncWebServer server(80);
 
 WiFiClient wifiClientEnv;
-WiFiClient wifiClientWeather;
-WiFiClient wifiClientWebPublisher;
-WiFiClient wifiClientPrise433_1;
-WiFiClient wifiClientPrise433_2;
-WiFiClient wifiClientDisplay;
-WiFiClient wifiClientTemp;
-//WiFiClient wifiClientVcc;
 PubSubClient mqttClientEnv(wifiClientEnv);
+#ifdef WEATHER_SERVICE
+WiFiClient wifiClientWeather;
 PubSubClient mqttClientWeather(wifiClientWeather);
+#endif
+WiFiClient wifiClientWebPublisher;
 PubSubClient mqttClientWebPub(wifiClientWebPublisher);
+
+WiFiClient wifiClientPrise433_1;
 PubSubClient mqttClientPrise433_1(wifiClientPrise433_1);
+
+WiFiClient wifiClientPrise433_2;
 PubSubClient mqttClientPrise433_2(wifiClientPrise433_2);
+
+WiFiClient wifiClientDisplay;
 PubSubClient mqttClientDisplay(wifiClientDisplay);
+
+WiFiClient wifiClientTemp;
 PubSubClient mqttClientTemp(wifiClientTemp);
+
+//WiFiClient wifiClientVcc;
 //PubSubClient mqttClientVcc(wifiClientVcc);
 
 //Flag that indicates web browser to refresh
@@ -66,7 +77,9 @@ unsigned long _lastWeatherUpdate = 0;
 Settings *mySettings = NULL;
 Logging *myLog = NULL;
 Environment *myEnv = new Environment(&mqttClientEnv, PRISE1_ID);
+#ifdef WEATHER_SERVICE
 WeatherService *myWeatherService = new WeatherService(&mqttClientWeather, PRISE1_ID);
+#endif
 WebMQTTPublisher *myWebPublisher = new WebMQTTPublisher(&mqttClientWebPub, &needRefresh, PRISE1_ID);
 //ESP_Vcc *vccSensor = new ESP_Vcc(&mqttClientVcc, VCC_ID, ADDRESS_SENSOR_VCC);
 
@@ -190,6 +203,7 @@ void setup()
       if(wifiList.indexOf(WiFi.SSID(i))==-1)
         wifiList += WiFi.SSID(i)+";";
   }
+  mySettings->setName(String(PRISE1_ID));
   mySettings->setWifiList(wifiList);
   
   connectWifi(30000);
@@ -239,12 +253,13 @@ Serial.println(WiFi.localIP());
     myLog = new Logging(PRISE1_ID);
     myEnv->setLog(myLog);
 
+#ifdef WEATHER_SERVICE
     myWeatherService->setWeatherLocation(WEATHER_LAT, WEATHER_LONG);
     myWeatherService->setLog(myLog);
     myWeatherService->setEnv(myEnv);
     myWeatherService->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientWeather.setCallback(NULL);
-        
+#endif        
     myDisplay->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientDisplay.setCallback(callbackDisplay);
     myDisplay->setLog(myLog);
@@ -297,7 +312,9 @@ void loop()
       force = true;
       _lastWeatherUpdate = millis();
     }
+#ifdef WEATHER_SERVICE
     myWeatherService->update(force);
+#endif
     myDisplay->update();
     prise433_1->update();
     prise433_2->update();
@@ -313,7 +330,8 @@ void initiatlizeWebServer()
     if(wifiAP) request->redirect("/settings");
     else
     {
-      request->send_P(200, "text/html", myWebPublisher->getIndexHTML().c_str());
+      //request->send_P(200, "text/html", myWebPublisher->getIndexHTML().c_str());
+      request->send(SPIFFS, myWebPublisher->getIndexHTML_file(), "text/html");
     }
   });
 
@@ -329,7 +347,8 @@ void initiatlizeWebServer()
   //Click on edit rules
   server.on("/rules", HTTP_GET, [](AsyncWebServerRequest *request){
     int iID = request->getParam("ID")->value().toInt();
-    request->send_P(200, "text/html", myWebPublisher->getRulesHTML(iID).c_str());
+    //request->send_P(200, "text/html", myWebPublisher->getRulesHTML(iID).c_str());
+    request->send(SPIFFS, myWebPublisher->getRulesHTML_file(iID), "text/html");
   });
 
   server.on("/saveRules", HTTP_POST, [](AsyncWebServerRequest *request){

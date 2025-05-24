@@ -63,7 +63,7 @@ bool WeatherService::updateWeather()
     
     DynamicJsonDocument docToRepublishHour(2048);
     JsonArray new_hourly_array = docToRepublishHour.createNestedArray("hourly");
-    DynamicJsonDocument docToRepublishDay(512);
+    DynamicJsonDocument docToRepublishDay(1024);
     JsonArray new_daily_array = docToRepublishDay.createNestedArray("daily");
     
     //WiFiClient *stream = http.getStreamPtr();
@@ -133,7 +133,7 @@ bool WeatherService::updateWeather()
           String sTopic = "/sensor/"+String(Id)+"/value";
           publishMsg(sTopic, String(T6), true); 
         }
-        if(new_daily_array.size()<4)
+        if(new_daily_array.size()<5)
         {
             JsonObject currentDay = new_daily_array.createNestedObject();
             currentDay["time"]= utcDay;
