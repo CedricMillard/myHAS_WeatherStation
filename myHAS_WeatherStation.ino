@@ -238,6 +238,7 @@ void setup() {
 
     myLog = new Logging(PRISE1_ID);
     myEnv->setLog(myLog);
+    myEnv->setLocation(WEATHER_LAT, WEATHER_LONG);
 
 #ifdef WEATHER_SERVICE
     myWeatherService->setWeatherLocation(WEATHER_LAT, WEATHER_LONG);
