@@ -20,9 +20,9 @@
 //#define ADDRESS_SENSOR_VCC 480
 #define ADDRESS_SENSOR_TEMP 480
 
-#define WEATHER_LOCATION "Kvicksund"
-#define WEATHER_LAT 59.449062
-#define WEATHER_LONG 16.332060
+#define WEATHER_LOCATION "Tokyo"
+#define WEATHER_LAT 35.712598405521625
+#define WEATHER_LONG 139.73351603585832
 
 //Uncomment to broadcast weather forecast from the web
 //#define WEATHER_SERVICE 
