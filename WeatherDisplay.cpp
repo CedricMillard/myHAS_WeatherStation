@@ -7,16 +7,16 @@
 #include "WeatherIcons.h"
 #include "Config_WeatherStation.h"
 
-#include <Fonts/FreeSansBold18pt7bCed.h>
-#include <Fonts/FreeSans12pt7bCed.h>
-#include <Fonts/FreeMonoBold9pt7bCed.h>
+#include "FreeSansBold18pt7bCed.h"
+#include "FreeSans12pt7bCed.h"
+#include "FreeMonoBold9pt7bCed.h"
 
 WeatherDisplay::WeatherDisplay(PubSubClient *iMqttClient, short iId, Environment *iEnv, int iEepromStartAddr, bool iPartialUpdate):GxEPD2_BW(GxEPD2_154_D67(/*CS=5*/ 15, /*DC=*/ 33, /*RST=*/ 14, /*BUSY=*/ 32)), WeatherDisplayObj(iId, iEepromStartAddr), MyMQTTClient(iMqttClient, String(iId)+"_display") 
 {
   pEnv = iEnv;
   partialUpdate = iPartialUpdate;
 //  display = new GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT>(GxEPD2_154_D67(/*CS=5*/ 15, /*DC=*/ 33, /*RST=*/ 27, /*BUSY=*/ 32)); // GDEH0154D67
-  GxEPD2_BW::init(115200);
+  GxEPD2_BW::init(115200, true, 2, false);
   mirror(false);
   topicList.add("/display/"+String(Id)+"/leftInfo"); 
   topicList.add("/display/"+String(Id)+"/rightInfo"); 
@@ -27,7 +27,7 @@ WeatherDisplay::WeatherDisplay(PubSubClient *iMqttClient, short iId, Environment
 void WeatherDisplay::handleMqttCallback(char* iTopic, byte* payload, unsigned int iLength)
 {
 #ifdef _DEBUG_
-  Serial.print("Message arrived [");
+  Serial.print("WeatherDisplay::Message arrived [");
   Serial.print(iTopic);
   Serial.print("] ");
   for (int i = 0; i < iLength; i++) {
@@ -64,7 +64,6 @@ void WeatherDisplay::handleMqttCallback(char* iTopic, byte* payload, unsigned in
       String pubTopic = "/net/display/" + String(Id) + "/leftInfo";
       publishMsg(pubTopic, leftInfo, true);
       updateLInfo();
-      //refreshFullScreen();
     }
   }
   if(sTopic.endsWith("/rightInfo"))
@@ -121,11 +120,23 @@ bool WeatherDisplay::publishParams()
   String pubTopic = "/net/display/" + String(Id) + "/name";
   bResult &= publishMsg(pubTopic, name, true);
 
+#ifdef _DEBUG_
+  Serial.println("Name Published");
+#endif  
+
   pubTopic = "/net/display/" + String(Id) + "/leftInfo";
   bResult &= publishMsg(pubTopic, leftInfo, true);
 
+#ifdef _DEBUG_
+  Serial.println("LeftInfo Published");
+#endif  
+
   pubTopic = "/net/display/" + String(Id) + "/rightInfo";
   bResult &= publishMsg(pubTopic, rightInfo, true);
+
+#ifdef _DEBUG_
+  Serial.println("rightInfo Published");
+#endif  
 
   return bResult;
 }
@@ -133,27 +144,38 @@ bool WeatherDisplay::publishParams()
 bool WeatherDisplay::update(bool iForce)
 {
   MyMQTTClient::update(iForce);
+  bool bfullRefresh = false;
+  
   long deltaSunrise = difftime(time(nullptr), pEnv->getSunriseTime());
   long deltaSunset = difftime(time(nullptr), pEnv->getSunsetTime());
-  bool bfullRefresh = false;
   if( (bInverted && deltaSunrise>0 && deltaSunset<0) || (!bInverted && deltaSunset>0) || (!bInverted && deltaSunrise<0) )
   {
     bInverted = !bInverted ;
     bfullRefresh = true;
   }
-    
-  int heure = getTimeFr().substring(0,2).toInt();
+
   if(lastTime.length()==0 || bfullRefresh || iForce)
   {
-    lastTime = getTimeFr();
-    refreshFullScreen();
+#ifdef _DEBUG_  
+      Serial.println("Full refresh");
+      Serial.println(lastTime);
+#endif
+      lastTime = getTimeFr();
+      lastDate = getDateFr();
+      refreshFullScreen();
+#ifdef _DEBUG_  
+      Serial.println("Full refresh done");
+#endif
   }
+
   else if(partialUpdate)
-  {
+  {  
     if(lastTime!=getTimeFr())
     {
 #ifdef _DEBUG_  
-      Serial.println("Refresh Time");
+      Serial.println("### Partial refresh");
+      Serial.println(lastTime);
+      Serial.println(getTimeFr());
 #endif
       lastTime = getTimeFr();
       if(lTime.type==bigTime)
@@ -162,16 +184,13 @@ bool WeatherDisplay::update(bool iForce)
 
         if(lastDate!=getDateFr())
         {
-    #ifdef _DEBUG_  
-          Serial.println("Refresh Date");
-    #endif
           lastDate = getDateFr();
           updateDate();
         }
       }
       else
         updateDate();
-      
+        
       for(int i = 0; i<4; i++)
       {
         if(lastWeather_daily[i]!=pEnv->getWeatherDay(i))
@@ -192,7 +211,7 @@ bool WeatherDisplay::update(bool iForce)
           else if(i<3) updateWeatherForecast(i);
         }
       }
-
+    
       if(lHourlyW.type==HourlyWeather)
       {
         for(int i = 0; i<4; i++)
@@ -233,7 +252,8 @@ bool WeatherDisplay::update(bool iForce)
         if(lastLInfo!=sLInfo)
         {
   #ifdef _DEBUG_  
-          Serial.println("Refresh LInfo ");
+          Serial.print("Refresh LInfo ");
+          Serial.print(sLInfo);
   #endif
           lastLInfo = sLInfo;
           updateLInfo();
@@ -242,7 +262,6 @@ bool WeatherDisplay::update(bool iForce)
     powerOff();
     }
   }
-
   else if(lastTime!=getTimeFr())
   {
 #ifdef _DEBUG_  
@@ -251,6 +270,8 @@ bool WeatherDisplay::update(bool iForce)
     lastTime = getTimeFr();
     refreshFullScreen();
   }
+
+  return true;
 }
 
 void WeatherDisplay::updateDate()
@@ -299,6 +320,10 @@ void WeatherDisplay::drawDate(layoutType iType, int iX, int iY)
 
 void WeatherDisplay::updateTime()
 {
+#ifdef _DEBUG_  
+      Serial.println("updateTime");
+#endif
+
   if(lTime.type == none) return;
 
   uint16_t fcolor = GxEPD_BLACK;
@@ -324,6 +349,10 @@ void WeatherDisplay::updateTime()
 void WeatherDisplay::drawTime(int iX, int iY)
 {
   String sTime = getTimeFr();
+#ifdef _DEBUG_  
+      Serial.print("drawTime = ");
+      Serial.println(sTime);
+#endif  
   setFont(&FreeSansBold18pt7b);
   setTextSize(2);
   int16_t tbx, tby; uint16_t tbw, tbh;
@@ -387,9 +416,9 @@ void WeatherDisplay::drawWeatherForecast(int iDay, int iX, int iY, uint16_t iCol
     setCursor(iX+96-tbw, iY + 35);
     print(Tmin);
 
-    drawWind(iX+2, iY + 2, iColor, weather.Wind);
+    //drawWind(iX+2, iY + 2, iColor, weather.Wind);
     
-    drawInvertedBitmap(iX+25, iY + 2, weatherIcons35x35[weather.Weather], 35, 35, iColor);
+    drawInvertedBitmap(iX+25, iY + 2, weatherIcons35x35[weather.Icon], 35, 35, iColor);
   }
   drawFrame(iColor);
 }
@@ -431,9 +460,9 @@ void WeatherDisplay::drawTodayWeather(int iX, int iY, uint16_t iColor)
     setCursor(iX+95-tbw, iY+75);
     print(Tmin);
 
-    drawWind(iX+4, iY+4, iColor, weather.Wind, true);
+    //drawWind(iX+4, iY+4, iColor, weather.Wind, true);
     
-    drawInvertedBitmap(iX+25, iY+5, weatherIcons50x50[weather.Weather], 50, 50, iColor);
+    drawInvertedBitmap(iX+25, iY+5, weatherIcons50x50[weather.Icon], 50, 50, iColor);
   }
   drawFrame(iColor);
 }
@@ -507,7 +536,7 @@ void WeatherDisplay::drawTimeForecast(int iPoz, int iX, int iY, uint16_t iColor)
     setCursor(iX+25-tbw/2, iY+57);
     print(Tmax);
   
-    drawInvertedBitmap(iX+7, iY+7, weatherIcons35x35[weather.Weather], 35, 35, iColor);
+    drawInvertedBitmap(iX+7, iY+7, weatherIcons35x35[weather.Icon], 35, 35, iColor);
   }
   
   drawFrame(iColor);
@@ -736,6 +765,7 @@ void WeatherDisplay::drawWind(uint16_t iX, uint16_t  iY, uint16_t iColor, float 
 
 void WeatherDisplay::refreshFullScreen()
 {
+  Serial.println("refreshFullScreen");
   uint16_t fcolor = GxEPD_BLACK;
   uint16_t bcolor = GxEPD_WHITE;
   if(bInverted)
@@ -743,7 +773,6 @@ void WeatherDisplay::refreshFullScreen()
     fcolor = GxEPD_WHITE;
     bcolor = GxEPD_BLACK;
   }
-  //Serial.println("helloWorld");
   setRotation(2);
   setTextColor(fcolor);
   setFullWindow();
@@ -775,7 +804,7 @@ void WeatherDisplay::refreshFullScreen()
       drawTimeForecast(3,lHourlyW.x+100, lHourlyW.y, fcolor);
       drawTimeForecast(4,lHourlyW.x+150, lHourlyW.y, fcolor);
     }
-    
+  
     //drawMoon(fcolor);
   }
   while (nextPage());
@@ -804,8 +833,6 @@ String roundTemp(float iTemp, short iNbDigit, bool iStrict)
 
 void WeatherDisplay::initLayout1()
 {
-  layoutElement currElem;
-  
   aLines.removeAll();
 
   lDate.type = dateOnly;
@@ -836,25 +863,29 @@ void WeatherDisplay::initLayout1()
   lRInfo.x = 100;
   lRInfo.y = 160;
   
-  currElem.type = HLine;
-  currElem.x = 100;
-  currElem.y = 80;
-  aLines.add(currElem);
+  layoutElement currElem1;
+  currElem1.type = HLine;
+  currElem1.x = 100;
+  currElem1.y = 80;
+  aLines.add(currElem1);
 
-  currElem.type = HLine;
-  currElem.x = 50;
-  currElem.y = 120;
-  aLines.add(currElem);
+  layoutElement currElem2;
+  currElem2.type = HLine;
+  currElem2.x = 50;
+  currElem2.y = 120;
+  aLines.add(currElem2);
 
-  currElem.type = HLine;
-  currElem.x = 100;
-  currElem.y = 160;
-  aLines.add(currElem);
+  layoutElement currElem3;
+  currElem3.type = HLine;
+  currElem3.x = 100;
+  currElem3.y = 160;
+  aLines.add(currElem3);
   
-  currElem.type = VLine;
-  currElem.x = 100;
-  currElem.y = 140;
-  aLines.add(currElem);
+  layoutElement currElem4;
+  currElem4.type = VLine;
+  currElem4.x = 100;
+  currElem4.y = 140;
+  aLines.add(currElem4);
 }
 
 void WeatherDisplay::initLayout2()

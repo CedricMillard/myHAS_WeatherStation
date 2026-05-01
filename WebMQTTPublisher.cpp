@@ -225,4 +225,5 @@ bool WebMQTTPublisher::update(bool iForce)
       }
     }
   }
+  return true;
 }

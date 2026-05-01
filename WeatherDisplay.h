@@ -91,13 +91,14 @@ class WeatherDisplay : public GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT>,
 
     Environment *pEnv = NULL;
 
-    String lastDate;
-    String lastTime;
+    String lastDate = "";
+    String lastTime = "";
+    bool timeDisp = false;
     Weather lastWeather_daily[4];
     Weather lastWeather_hourly[4];
-    String lastMoon;
-    String lastRInfo;
-    String lastLInfo;
+    String lastMoon = "";
+    String lastRInfo = "";
+    String lastLInfo = "";
     
     bool bInverted = false;
     bool partialUpdate = true;

@@ -37,13 +37,12 @@
 #ifdef WEATHER_SERVICE
 #include "WeatherService.h"
 #endif
-
+#define _DEBUG_
 //Flag to indicate if prise is a wifi client or an access point
 bool wifiAP = false;
 unsigned long wifiReconnectTime = 0;
 
 AsyncWebServer server(80);
-
 WiFiClient wifiClientEnv;
 PubSubClient mqttClientEnv(wifiClientEnv);
 #ifdef WEATHER_SERVICE
@@ -64,9 +63,6 @@ PubSubClient mqttClientDisplay(wifiClientDisplay);
 
 WiFiClient wifiClientTemp;
 PubSubClient mqttClientTemp(wifiClientTemp);
-
-//WiFiClient wifiClientVcc;
-//PubSubClient mqttClientVcc(wifiClientVcc);
 
 //Flag that indicates web browser to refresh
 bool needRefresh = false;
@@ -91,25 +87,25 @@ TempSensorDS18B20 *tempSensor = new TempSensorDS18B20(&mqttClientTemp, TEMP_ID, 
 int Objet::eepromSize{ 1100 };
 bool Objet::eepromInit{ false };
 
-WeatherDisplay *myDisplay = new WeatherDisplay(&mqttClientDisplay, PRISE1_ID, myEnv, 1024);
+WeatherDisplay *myDisplay = NULL;//new WeatherDisplay(&mqttClientDisplay, PRISE1_ID, myEnv, 1024);
 
-void callbackEnv(char* topic, byte* payload, unsigned int length) {
+void callbackEnv(char *topic, byte *payload, unsigned int length) {
   myEnv->handleMqttCallback(topic, payload, length);
 }
 
-void callbackWeb(char* topic, byte* payload, unsigned int length) {
+void callbackWeb(char *topic, byte *payload, unsigned int length) {
   myWebPublisher->handleMqttCallback(topic, payload, length);
 }
 
-void callbackPrise_1(char* topic, byte* payload, unsigned int length) {
+void callbackPrise_1(char *topic, byte *payload, unsigned int length) {
   prise433_1->handleMqttCallback(topic, payload, length);
 }
 
-void callbackPrise_2(char* topic, byte* payload, unsigned int length) {
+void callbackPrise_2(char *topic, byte *payload, unsigned int length) {
   prise433_2->handleMqttCallback(topic, payload, length);
 }
 
-void callbackDisplay(char* topic, byte* payload, unsigned int length) {
+void callbackDisplay(char *topic, byte *payload, unsigned int length) {
   myDisplay->handleMqttCallback(topic, payload, length);
 }
 
@@ -117,135 +113,125 @@ void callbackDisplay(char* topic, byte* payload, unsigned int length) {
   vccSensor->handleMqttCallback(topic, payload, length);
 }*/
 
-void callbackTemp(char* topic, byte* payload, unsigned int length) {
+void callbackTemp(char *topic, byte *payload, unsigned int length) {
   tempSensor->handleMqttCallback(topic, payload, length);
 }
 
-void checkWifi()
-{
-  //If wifi connection lost, try to reconnect every 15 seconds (because ESP will keep initiating the connection in the background). 
-  if(WiFi.status() != WL_CONNECTED && millis()-wifiReconnectTime>15000)
-  {
-#ifdef _DEBUG_  
-      Serial.print("Wifi connection lost, trying to reconnect");
-#endif 
+void checkWifi() {
+  //If wifi connection lost, try to reconnect every 15 seconds (because ESP will keep initiating the connection in the background).
+  if (WiFi.status() != WL_CONNECTED && millis() - wifiReconnectTime > 15000) {
+#ifdef _DEBUG_
+    Serial.print("Wifi connection lost, trying to reconnect");
+#endif
     //To not flood the log, raise up message every hour only
-    if(millis()-wifiReconnectTime>3600000)
+    if (millis() - wifiReconnectTime > 3600000)
       myLog->addLogEntry("Wifi connection lost, trying to reconnect");
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(mySettings->getWifiSSID(), mySettings->getWifiPWD());
     wifiReconnectTime = millis();
   }
-  
 }
 
 //Set the ESP as an AP to configure it
-void setWifiAP()
-{
+void setWifiAP() {
   wifiAP = true;
   WiFi.mode(WIFI_AP);
-  IPAddress local_ip(192,168,0,1);
-  IPAddress gateway(192,168,0,1);
-  IPAddress subnet(255,255,255,0);
+  IPAddress local_ip(192, 168, 0, 1);
+  IPAddress gateway(192, 168, 0, 1);
+  IPAddress subnet(255, 255, 255, 0);
   WiFi.softAPConfig(local_ip, gateway, subnet);
   WiFi.softAP("myHAS", "12345678");
 }
 
-void connectWifi(unsigned long iTimeOut = -1)
-{
-  if(mySettings->isWifiSetup())
-  {
-     if(WiFi.status() != WL_CONNECTED)
-     {
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(mySettings->getWifiSSID(), mySettings->getWifiPWD());
-#ifdef _DEBUG_  
-        Serial.print("Connecting to WiFi");
-#endif 
-        unsigned long currentMillis = millis();
-        while (WiFi.status() != WL_CONNECTED && ((unsigned long)(millis()-currentMillis)<iTimeOut || iTimeOut==-1) )
-        {
-          delay(500);
-#ifdef _DEBUG_  
-          Serial.print(".");
-#endif    
-        }
+void connectWifi(unsigned long iTimeOut = -1) {
+  if (mySettings->isWifiSetup()) {
+    if (WiFi.status() != WL_CONNECTED) {
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(mySettings->getWifiSSID(), mySettings->getWifiPWD());
+#ifdef _DEBUG_
+      Serial.print("Connecting to WiFi");
+#endif
+      unsigned long currentMillis = millis();
+      while (WiFi.status() != WL_CONNECTED && ((unsigned long)(millis() - currentMillis) < iTimeOut || iTimeOut == -1)) {
+        delay(500);
+#ifdef _DEBUG_
+        Serial.print(".");
+#endif
+      }
 
-        if(WiFi.status() != WL_CONNECTED)
-        {
-          WiFi.disconnect();
-          setWifiAP();
-        }
+      if (WiFi.status() != WL_CONNECTED) {
+        WiFi.disconnect();
+        setWifiAP();
+      }
 
-#ifdef _DEBUG_  
-        Serial.println("\nConnected !");
-#endif     
-
-     }
-  }
-  else
-  {
+#ifdef _DEBUG_
+      Serial.println("\nConnected !");
+#endif
+    }
+  } else {
     setWifiAP();
   }
-  
-  
 }
 
-void setup()
-{    
+void setup() {
   Serial.begin(115200);
+  Serial.println("Starting myHAS_WeatherStation");
+  
   mySettings = new Settings();
   String wifiList = "";
+  Serial.print("Nb Wifi = ");
   int nbNetworks = WiFi.scanNetworks();
- 
-  for(int i =0; i<nbNetworks; i++){
-      if(wifiList.indexOf(WiFi.SSID(i))==-1)
-        wifiList += WiFi.SSID(i)+";";
+  Serial.println(String(nbNetworks));
+  for (int i = 0; i < nbNetworks; i++) {
+
+    if (wifiList.indexOf(WiFi.SSID(i)) == -1) {
+      wifiList += WiFi.SSID(i) + ";";
+    }
   }
+
   mySettings->setName(String(PRISE1_ID));
   mySettings->setWifiList(wifiList);
-  
+
   connectWifi(30000);
 
   // Print ESP32 Local IP Address
-#ifdef _DEBUG_  
-Serial.println(WiFi.localIP());
+#ifdef _DEBUG_
+  Serial.println(WiFi.localIP());
 #endif
 
   initiatlizeWebServer();
-  if(!wifiAP)
-  {
+  if (!wifiAP) {
     ArduinoOTA
       .onStart([]() {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH)
           type = "sketch";
-        else // U_SPIFFS
+        else  // U_SPIFFS
           type = "filesystem";
 
         // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
         Serial.println("Start updating " + type);
       });
-      ArduinoOTA.onEnd([]() {
-        Serial.println("\nEnd");
-      });
-      ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-      });
-      ArduinoOTA.onError([](ota_error_t error) {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR) Serial.println("End Failed");
-      });
+    ArduinoOTA.onEnd([]() {
+      Serial.println("\nEnd");
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(OTA_NAME);
     ArduinoOTA.setPassword(mySettings->getOTAPWD());
     ArduinoOTA.begin();
-    
+
     //initialize MQTT clients
     myEnv->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientEnv.setCallback(callbackEnv);
@@ -259,7 +245,8 @@ Serial.println(WiFi.localIP());
     myWeatherService->setEnv(myEnv);
     myWeatherService->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientWeather.setCallback(NULL);
-#endif        
+#endif
+    myDisplay = new WeatherDisplay(&mqttClientDisplay, PRISE1_ID, myEnv, 1024);
     myDisplay->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientDisplay.setCallback(callbackDisplay);
     myDisplay->setLog(myLog);
@@ -275,7 +262,7 @@ Serial.println(WiFi.localIP());
     prise433_1->setEnv(myEnv);
     prise433_1->setLog(myLog);
     prise433_1->init();
-    
+
     prise433_2->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     prise433_2->setEnv(myEnv);
     prise433_2->setLog(myLog);
@@ -286,159 +273,135 @@ Serial.println(WiFi.localIP());
     tempSensor->setEnv(myEnv);
     tempSensor->setLog(myLog);
     tempSensor->init();
-    
+
     /*
     vccSensor->setMqttServer(mySettings->getMqttServer(), mySettings->getMqttPort(), mySettings->getMqttLogin(), mySettings->getMqttPWD());
     mqttClientVcc.setCallback(callbackVcc);
     vccSensor->setEnv(myEnv);
     vccSensor->init();*/
   }
-  
 }
 
-void loop()
-{
-  if(!wifiAP)
-  {
+void loop() {
+  if (!wifiAP) {
     checkWifi();
-    
+
     ArduinoOTA.handle();
-    
+
     tempSensor->update();
+   
     myEnv->update();
+
     bool force = false;
-    if(myEnv->getWeatherDay(3).Weather == 0 && (unsigned long)(millis()-_lastWeatherUpdate)>90000) 
-    {
+    /*if (myEnv->getWeatherDay(3).Weather == 0 && (unsigned long)(millis() - _lastWeatherUpdate) > 90000) {
       force = true;
       _lastWeatherUpdate = millis();
-    }
+    }*/
 #ifdef WEATHER_SERVICE
     myWeatherService->update(force);
 #endif
     myDisplay->update();
-    prise433_1->update();
-    prise433_2->update();
-    myWebPublisher->update();
+    //prise433_1->update();
+    //prise433_2->update();
+    //myWebPublisher->update();
     //vccSensor->update();
     //delay(100);
   }
 }
 
-void initiatlizeWebServer()
-{
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    if(wifiAP) request->redirect("/settings");
-    else
-    {
+void initiatlizeWebServer() {
+  /*
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (wifiAP) request->redirect("/settings");
+    else {
       //request->send_P(200, "text/html", myWebPublisher->getIndexHTML().c_str());
       request->send(SPIFFS, myWebPublisher->getIndexHTML_file(), "text/html");
     }
   });
 
-  server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, LOG_FILE_PATH, "text/plain");
   });
-
-  server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request){
+/*
+  server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "text/plain", String(needRefresh).c_str());
     needRefresh = false;
   });
 
   //Click on edit rules
-  server.on("/rules", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/rules", HTTP_GET, [](AsyncWebServerRequest *request) {
     int iID = request->getParam("ID")->value().toInt();
     //request->send_P(200, "text/html", myWebPublisher->getRulesHTML(iID).c_str());
     request->send(SPIFFS, myWebPublisher->getRulesHTML_file(iID), "text/html");
   });
 
-  server.on("/saveRules", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/saveRules", HTTP_POST, [](AsyncWebServerRequest *request) {
     //Publish rules
     int iID = request->getParam("ID", true)->value().toInt();
     String newRules = request->getParam("output", true)->value();
     myWebPublisher->aPrises.getItem(iID)->jsonToRules(newRules);
-    
+
     String topic = "/prise/" + String(iID) + "/rules";
     myWebPublisher->publishMsg(topic, newRules, false);
-    
+
     request->redirect("/");
   });
 
   //Change a button status in Webpage
-  server.on("/", HTTP_POST, [](AsyncWebServerRequest *request){
-#ifdef _DEBUG_      
+  server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
+#ifdef _DEBUG_
     Serial.printf("Number of GET param = %d\n", (int)(request->params()));
 #endif
-    for(int i=0; i<request->params(); i++)
-    {
+    for (int i = 0; i < request->params(); i++) {
       String paramName = request->getParam(i)->name();
       String paramValue = request->getParam(i)->value();
-Serial.printf("Param %d name = %s value = %s\n", i, paramName.c_str(), paramValue.c_str());
-      String objID = paramName.substring(paramName.indexOf('_')+1, paramName.lastIndexOf('_'));
-      if(paramName.startsWith("prise_"))
-      {
-        if(paramName.endsWith("_name"))
-        {
-          if(myWebPublisher->aPrises.getItem(objID.toInt())->name != paramValue) 
-          {
+      Serial.printf("Param %d name = %s value = %s\n", i, paramName.c_str(), paramValue.c_str());
+      String objID = paramName.substring(paramName.indexOf('_') + 1, paramName.lastIndexOf('_'));
+      if (paramName.startsWith("prise_")) {
+        if (paramName.endsWith("_name")) {
+          if (myWebPublisher->aPrises.getItem(objID.toInt())->name != paramValue) {
             String topic = "/prise/" + objID + "/name";
             myWebPublisher->publishMsg(topic, paramValue, false);
             myWebPublisher->aPrises.getItem(objID.toInt())->name = paramValue;
           }
-        }
-        else if(paramName.endsWith("_status"))
-        {
-          if(myWebPublisher->aPrises.getItem(objID.toInt())->status ^ paramValue.toInt()) {
+        } else if (paramName.endsWith("_status")) {
+          if (myWebPublisher->aPrises.getItem(objID.toInt())->status ^ paramValue.toInt()) {
             String topic = "/prise/" + objID + "/status";
             myWebPublisher->publishMsg(topic, paramValue, false);
             myWebPublisher->aPrises.getItem(objID.toInt())->status = paramValue.toInt();
           }
         }
-      }
-      else if(paramName.startsWith("sensor_")) 
-      {
-        if(paramName.endsWith("_name"))
-        {
-          if(myWebPublisher->aSensors.getItem(objID.toInt())->name != paramValue) 
-          {
+      } else if (paramName.startsWith("sensor_")) {
+        if (paramName.endsWith("_name")) {
+          if (myWebPublisher->aSensors.getItem(objID.toInt())->name != paramValue) {
             String topic = "/sensor/" + objID + "/name";
             myWebPublisher->publishMsg(topic, paramValue, false);
             myWebPublisher->aSensors.getItem(objID.toInt())->name = paramValue;
           }
         }
-      }
-      else if(paramName.startsWith("display_")) 
-      {
-        if(paramName.endsWith("_name"))
-        {
-          if(myWebPublisher->aDisplays.getItem(objID.toInt())->name != paramValue) 
-          {
+      } else if (paramName.startsWith("display_")) {
+        if (paramName.endsWith("_name")) {
+          if (myWebPublisher->aDisplays.getItem(objID.toInt())->name != paramValue) {
             String topic = "/display/" + objID + "/name";
             myWebPublisher->publishMsg(topic, paramValue, true);
             myWebPublisher->aDisplays.getItem(objID.toInt())->name = paramValue;
           }
-        }
-        else if(paramName.endsWith("_Left"))
-        {
-          if(myWebPublisher->aDisplays.getItem(objID.toInt())->leftInfo != paramValue) 
-          {
+        } else if (paramName.endsWith("_Left")) {
+          if (myWebPublisher->aDisplays.getItem(objID.toInt())->leftInfo != paramValue) {
             String topic = "/display/" + objID + "/leftInfo";
             myWebPublisher->publishMsg(topic, paramValue, true);
             myWebPublisher->aDisplays.getItem(objID.toInt())->leftInfo = paramValue;
           }
         }
-        if(paramName.endsWith("_Right"))
-        {
-          if(myWebPublisher->aDisplays.getItem(objID.toInt())->rightInfo != paramValue) 
-          {
+        if (paramName.endsWith("_Right")) {
+          if (myWebPublisher->aDisplays.getItem(objID.toInt())->rightInfo != paramValue) {
             String topic = "/display/" + objID + "/rightInfo";
             myWebPublisher->publishMsg(topic, paramValue, true);
             myWebPublisher->aDisplays.getItem(objID.toInt())->rightInfo = paramValue;
           }
         }
-        if(paramName.endsWith("_Layout"))
-        {
-          if(myWebPublisher->aDisplays.getItem(objID.toInt())->layout != paramValue.toInt()) 
-          {
+        if (paramName.endsWith("_Layout")) {
+          if (myWebPublisher->aDisplays.getItem(objID.toInt())->layout != paramValue.toInt()) {
             String topic = "/display/" + objID + "/layout";
             myWebPublisher->publishMsg(topic, paramValue, true);
             myWebPublisher->aDisplays.getItem(objID.toInt())->layout = paramValue.toInt();
@@ -449,17 +412,17 @@ Serial.printf("Param %d name = %s value = %s\n", i, paramName.c_str(), paramValu
     //request->send_P(200, "text/html", getIndexHTML().c_str());
     request->redirect("/");
   });
-
-  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request){
+*/
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
     String sIndexPage = mySettings->getSettingsHtml();
     request->send_P(200, "text/html", sIndexPage.c_str());
   });
 
-  server.on("/updateSettings", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/updateSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
     //Publish rules
     mySettings->setWifiLogin(request->getParam("wifiSSID", true)->value(), request->getParam("wifiPWD", true)->value());
     mySettings->setmqttServer(request->getParam("mqttServer", true)->value(), request->getParam("mqttPort", true)->value().toInt(),
-    request->getParam("mqttLogin", true)->value(), request->getParam("mqttPWD", true)->value());
+                              request->getParam("mqttLogin", true)->value(), request->getParam("mqttPWD", true)->value());
     mySettings->setOTA(request->getParam("otaPWD", true)->value());
     mySettings->saveSettings();
     request->send_P(200, "text/html", "Restarting...");
