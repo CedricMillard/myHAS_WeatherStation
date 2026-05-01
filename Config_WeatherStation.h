@@ -24,7 +24,8 @@
 #define WEATHER_LAT 59.449062
 #define WEATHER_LONG 16.332060
 
-//WEATHER
+//Uncomment to broadcast weather forecast from the web
+//#define WEATHER_SERVICE 
 //#define WEATHER_URI "https://api.darksky.net/forecast/#KEY/#LAT,#LONG?#OPTIONS"
 //#define WEATHER_KEY "751c1dc1b7b46ffa19ba9041a818f53e"
 //#define WEATHER_OPTIONS "exclude=currently,minutely,alerts,flag&units=ca&lang=fr"
